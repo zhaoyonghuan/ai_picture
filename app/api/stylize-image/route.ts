@@ -1,21 +1,22 @@
 import { NextResponse } from "next/server";
 import { getImageStylizationService } from "@/services/image-stylization/image-stylization-factory";
 
-// 通过工厂函数获取当前配置的服务实例
-const imageStylizationService = getImageStylizationService();
-
 export async function POST(request: Request) {
   console.log("Entering POST function for stylize-image (API Route)");
   try {
-    const { imageUrl, styleId } = await request.json();
-    console.log("Received imageUrl:", imageUrl ? "length " + imageUrl.length : "null", "styleId:", styleId);
+    const { imageUrl, styleId, apiKey } = await request.json();
+    console.log("Received imageUrl:", imageUrl ? "length " + imageUrl.length : "null", "styleId:", styleId, "apiKey:", apiKey ? "[REDACTED]" : "null");
 
-    if (!imageUrl || !styleId) {
+    if (!imageUrl || !styleId || !apiKey) {
       console.log("Returning 400: Missing parameters");
-      return NextResponse.json({ message: "缺少必要参数" }, { status: 400 });
+      return NextResponse.json({ 
+        message: !apiKey ? "请先输入秘钥" : "缺少必要参数" 
+      }, { status: 400 });
     }
 
-    // 调用通用服务接口的方法，直接传递 imageUrl
+    // 通过工厂函数获取当前配置的服务实例，传递 apiKey
+    const imageStylizationService = getImageStylizationService(apiKey);
+    // 调用通用服务接口的方法，传递 imageUrl、styleId
     const { previewUrl, imageUrls, styleNameForDisplay } = await imageStylizationService.stylizeImage(imageUrl, styleId);
     console.log("Generated preview URL length:", previewUrl.length);
     console.log("Total images generated:", imageUrls.length);

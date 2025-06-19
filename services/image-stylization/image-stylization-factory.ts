@@ -3,13 +3,18 @@ import { StabilityAIService } from "./stability-ai-service";
 import { AicomflyService } from "./aicomfly-service";
 import { ImageStylizationProvider, DEFAULT_IMAGE_STYLIZATION_PROVIDER } from "@/config/image-stylization-config";
 
-export function getImageStylizationService(): ImageStylizationService {
+export function getImageStylizationService(apiKey?: string): ImageStylizationService {
   console.log("运行时 DEFAULT_IMAGE_STYLIZATION_PROVIDER 的值:", DEFAULT_IMAGE_STYLIZATION_PROVIDER);
   switch (DEFAULT_IMAGE_STYLIZATION_PROVIDER) {
     case ImageStylizationProvider.STABILITY_AI:
       return new StabilityAIService();
     case ImageStylizationProvider.AICOMFLY:
-      return new AicomflyService();
+      const service = new AicomflyService();
+      if (apiKey) {
+        // @ts-ignore
+        service.chatApiKey = apiKey;
+      }
+      return service;
     // 未来其他提供商将在这里添加
     // case ImageStylizationProvider.HUGGING_FACE:
     //   return new HuggingFaceService();

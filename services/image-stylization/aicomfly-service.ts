@@ -15,11 +15,15 @@ export class AicomflyService implements ImageStylizationService {
 
   async stylizeImage(
     imageUrl: string,
-    styleId: string
+    styleId: string,
+    apiKey?: string
   ): Promise<ImageStylizationResult> {
     try {
       const promptText = this.getPromptForStyle(styleId);
-
+      const useApiKey = apiKey || this.chatApiKey;
+      if (!useApiKey) {
+        throw new Error("Aicomfly API 密钥未提供");
+      }
       const requestBody = {
         model: "gpt-4o-image",
         stream: false,
@@ -47,14 +51,15 @@ export class AicomflyService implements ImageStylizationService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': `Bearer ${this.chatApiKey}`,
+          'Authorization': `Bearer ${useApiKey}`,
         },
         body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Aicomfly Chat API 请求失败: ${response.status} ${response.statusText} - ${errorText}`);
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.error?.message || errorData?.message || await response.text();
+        throw new Error(`Aicomfly API 请求失败: ${errorMessage}`);
       }
 
       const result = await response.json();

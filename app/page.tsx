@@ -16,7 +16,6 @@ import Image from "next/image" // 用于显示修改后的多张图片
 
 export default function PicMagicPage() {
   const [apiKey, setApiKey] = useState<string>("")
-  const [isKeyValid, setIsKeyValid] = useState<boolean | null>(null)
   const [uploadedImageFile, setUploadedImageFile] = useState<File | null>(null) // 原始图片文件
   const [uploadedCloudinaryUrl, setUploadedCloudinaryUrl] = useState<string | null>(null) // Cloudinary URL
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
@@ -80,6 +79,10 @@ export default function PicMagicPage() {
   }, [toast])
 
   const handleGenerate = async () => {
+    if (!apiKey) {
+      toast({ title: "未输入秘钥", description: "请先输入秘钥。", variant: "destructive" })
+      return
+    }
     if (!uploadedImageFile) {
       toast({ title: "未上传图片", description: "请先上传一张图片。", variant: "destructive" })
       return
@@ -212,12 +215,6 @@ export default function PicMagicPage() {
       return;
     }
 
-    if (!isKeyValid) {
-      toast({ title: "需要秘钥", description: "下载高清图片需要验证有效的秘钥。", variant: "destructive" })
-      setIsSupportModalOpen(true)
-      return
-    }
-
     if (!stylizedImageUrl) {
       toast({ title: "无法下载", description: "请先生成预览图片。", variant: "destructive" })
       return
@@ -263,7 +260,7 @@ export default function PicMagicPage() {
 
   return (
     <div className="relative min-h-screen bg-background">
-      {/* 右下角“购买与客服”按钮 */}
+      {/* 右下角"购买与客服"按钮 */}
       <button
         className="fixed bottom-6 right-6 z-50 bg-primary text-primary-foreground px-5 py-3 rounded-full shadow-lg hover:bg-primary/90 transition-colors"
         onClick={() => setIsBuyModalOpen(true)}
@@ -277,9 +274,7 @@ export default function PicMagicPage() {
           <KeyValidator
             apiKey={apiKey}
             setApiKey={setApiKey}
-            isKeyValid={isKeyValid}
-            setIsKeyValid={setIsKeyValid}
-            onOpenSupportModal={() => setIsSupportModalOpen(true)}
+            onOpenSupportModal={() => setIsBuyModalOpen(true)}
           />
           <ThemeToggle />
         </div>
