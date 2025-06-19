@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
-
-// Hugging Face API 端点
-const HF_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+import { getImageStylizationService } from "@/services/image-stylization/image-stylization-factory"
+import { writeFile } from "fs/promises"
+import { join } from "path"
+import { tmpdir } from "os"
 
 export async function POST(req: Request) {
   try {
@@ -14,52 +15,34 @@ export async function POST(req: Request) {
       )
     }
 
-    // 根据选择的风格设置提示词
-    const stylePrompts: { [key: string]: string } = {
-      "油画": "oil painting style, detailed brushstrokes, rich colors, classical art",
-      "水彩": "watercolor style, soft colors, flowing textures, artistic",
-      "素描": "pencil sketch style, detailed lines, monochrome, artistic",
-      "动漫": "anime style, vibrant colors, clean lines, Japanese animation",
-      "像素": "pixel art style, 8-bit, retro gaming, pixelated",
-      "赛博朋克": "cyberpunk style, neon colors, futuristic, high tech",
-      "写实": "photorealistic style, high detail, natural lighting",
-      "抽象": "abstract art style, modern, artistic, creative",
+    // 将 base64 图片保存到临时文件
+    const base64Data = inputImageUrl.replace(/^data:image\/[a-z]+;base64,/, '')
+    const buffer = Buffer.from(base64Data, 'base64')
+    
+    // 创建临时文件
+    const tempFileName = `temp_${Date.now()}.jpg`
+    const tempFilePath = join(tmpdir(), tempFileName)
+    
+    try {
+      await writeFile(tempFilePath, buffer)
+      
+      // 使用图像风格化服务
+      const stylizationService = getImageStylizationService()
+      const result = await stylizationService.stylizeImage(tempFilePath, style)
+      
+      return NextResponse.json({
+        imageUrl: result.previewUrl,
+        styleName: result.styleNameForDisplay,
+      })
+      
+    } finally {
+      // 清理临时文件
+      try {
+        await writeFile(tempFilePath, '') // 清空文件
+      } catch (cleanupError) {
+        console.warn("清理临时文件失败:", cleanupError)
+      }
     }
-
-    const prompt = stylePrompts[style] || "artistic style"
-
-    // 调用 Hugging Face API
-    const response = await fetch(HF_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: {
-          image: inputImageUrl,
-          prompt: prompt,
-          negative_prompt: "blurry, low quality, distorted, deformed",
-          num_inference_steps: 50,
-          guidance_scale: 7.5,
-          strength: 0.7,
-        },
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`API 请求失败: ${response.statusText}`)
-    }
-
-    // 获取生成的图片
-    const imageBlob = await response.blob()
-    const imageBuffer = await imageBlob.arrayBuffer()
-    const base64Image = Buffer.from(imageBuffer).toString('base64')
-    const generatedImageUrl = `data:image/jpeg;base64,${base64Image}`
-
-    return NextResponse.json({
-      imageUrl: generatedImageUrl,
-    })
 
   } catch (error: any) {
     console.error("生成图片时出错:", error)

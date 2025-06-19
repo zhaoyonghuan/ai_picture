@@ -21,7 +21,7 @@ interface SupportModalProps {
 export function SupportModal({ isOpen, onOpenChange }: SupportModalProps) {
   const { toast } = useToast()
   const wechatId = "agegcc"
-  const taobaoLink = "https://item.taobao.com/item.htm?id=YOUR_ITEM_ID" // 替换为您的淘宝链接
+  const taobaoLink = "https://h5.m.taobao.com/awp/core/detail.htm?ft=t&id=942553296261" // 替换为您的淘宝链接
 
   const copyToClipboard = () => {
     navigator.clipboard
@@ -55,7 +55,7 @@ export function SupportModal({ isOpen, onOpenChange }: SupportModalProps) {
             <p className="text-sm text-muted-foreground">点击下方按钮前往淘宝店铺购买秘钥。</p>
             <Button onClick={() => window.open(taobaoLink, "_blank")} className="w-full">
               <ExternalLink className="mr-2 h-4 w-4" />
-              前往淘宝购买秘钥
+              购买秘钥
             </Button>
           </div>
           <div className="space-y-3 p-4 border rounded-lg">
