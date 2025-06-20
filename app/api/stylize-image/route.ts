@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     // 通过工厂函数获取当前配置的服务实例，传递 apiKey
     const imageStylizationService = getImageStylizationService(apiKey);
     // 调用通用服务接口的方法，传递 imageUrl、styleId
-    const { previewUrl, imageUrls, styleNameForDisplay } = await imageStylizationService.stylizeImage(imageUrl, styleId);
+    const { previewUrl, imageUrls, styleNameForDisplay } = await imageStylizationService.stylizeImage(imageUrl, styleId, apiKey);
     console.log("Generated preview URL length:", previewUrl.length);
     console.log("Total images generated:", imageUrls.length);
 

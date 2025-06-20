@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { styles, type StyleOption } from "./picmagic-styles"
 import { Palette } from "lucide-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Input } from "@/components/ui/input"
 
 interface StyleInfo {
   id: string
@@ -16,9 +18,11 @@ interface StyleInfo {
 interface StyleSelectorProps {
   selectedStyle: string | null
   onStyleSelect: (styleId: string) => void
+  customStyleValue: string
+  onCustomStyleChange: (value: string) => void
 }
 
-export function StyleSelector({ selectedStyle, onStyleSelect }: StyleSelectorProps) {
+export function StyleSelector({ selectedStyle, onStyleSelect, customStyleValue, onCustomStyleChange }: StyleSelectorProps) {
   const [dynamicStyles, setDynamicStyles] = useState<StyleInfo[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -71,34 +75,52 @@ export function StyleSelector({ selectedStyle, onStyleSelect }: StyleSelectorPro
       </h3>
       
       {error && (
-        <div className="mb-4 p-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
-          获取风格列表失败，使用默认风格
-        </div>
+        null
       )}
       
       <TooltipProvider delayDuration={200}>
-        <RadioGroup
-          value={selectedStyle || undefined}
-          onValueChange={onStyleSelect}
-          className="grid grid-cols-2 sm:grid-cols-3 gap-4"
-        >
-          {availableStyles.map((style: StyleOption) => (
-            <Tooltip key={style.id}>
-              <TooltipTrigger asChild>
-                <div className="flex items-center space-x-2 p-3 border rounded-md hover:border-primary transition-colors data-[state=checked]:border-primary data-[state=checked]:ring-2 data-[state=checked]:ring-primary">
-                  <RadioGroupItem value={style.id} id={style.id} />
-                  <Label htmlFor={style.id} className="cursor-pointer flex-1 text-sm">
-                    {style.name}
-                  </Label>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top" align="center">
-                <p className="text-xs max-w-xs">{style.description}</p>
-              </TooltipContent>
-            </Tooltip>
-          ))}
-        </RadioGroup>
+        <ScrollArea className="h-72 rounded-md border">
+          <RadioGroup
+            value={selectedStyle || undefined}
+            onValueChange={val => {
+              onStyleSelect(val)
+              if (val !== "custom") {
+                onCustomStyleChange("")
+              }
+            }}
+            className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4"
+          >
+            {availableStyles.map((style: StyleOption) => (
+              <Tooltip key={style.id}>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center space-x-2 p-3 border rounded-md hover:border-primary transition-colors data-[state=checked]:border-primary data-[state=checked]:ring-2 data-[state=checked]:ring-primary">
+                    <RadioGroupItem value={style.id} id={style.id} />
+                    <Label htmlFor={style.id} className="cursor-pointer flex-1 text-sm">
+                      {style.name}
+                    </Label>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="center">
+                  <p className="text-xs max-w-xs">{style.description}</p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </RadioGroup>
+        </ScrollArea>
       </TooltipProvider>
+      
+      {selectedStyle === "custom" && (
+        <div className="mt-4">
+          <Input
+            type="text"
+            placeholder="请输入自定义风格名称"
+            value={customStyleValue}
+            onChange={e => {
+              onCustomStyleChange(e.target.value)
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -106,4 +128,6 @@ export function StyleSelector({ selectedStyle, onStyleSelect }: StyleSelectorPro
 StyleSelector.defaultProps = {
   selectedStyle: null,
   onStyleSelect: () => {},
+  customStyleValue: "",
+  onCustomStyleChange: () => {},
 }

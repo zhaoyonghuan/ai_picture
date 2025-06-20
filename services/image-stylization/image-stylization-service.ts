@@ -13,7 +13,8 @@ export interface StyleInfo {
 export interface ImageStylizationService {
   stylizeImage(
     imagePath: string,
-    styleId: string
+    styleId: string,
+    apiKey?: string
   ): Promise<ImageStylizationResult>; // 返回包含 URL 和名称的对象
   
   // 可选方法：获取支持的风格列表

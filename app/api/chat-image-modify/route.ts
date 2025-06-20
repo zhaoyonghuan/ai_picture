@@ -4,11 +4,11 @@ const AICOMFLY_CHAT_API_URL = "https://ai.comfly.chat/v1/chat/completions";
 
 export async function POST(req: Request) {
   try {
-    const { imageUrl, promptText } = await req.json();
+    const { imageUrl, promptText, apiKey } = await req.json();
 
-    if (!imageUrl || !promptText) {
+    if (!imageUrl || !promptText || !apiKey) {
       return NextResponse.json(
-        { error: "缺少必要参数：imageUrl 或 promptText" },
+        { error: "缺少必要参数：imageUrl、promptText 或 apiKey" },
         { status: 400 }
       );
     }
@@ -38,11 +38,8 @@ export async function POST(req: Request) {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "Accept": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
     };
-
-    if (process.env.AICOMFLY_API_KEY) {
-      headers["Authorization"] = `Bearer ${process.env.AICOMFLY_API_KEY}`;
-    }
 
     console.log("调用 Aicomfly Chat API，请求体：", JSON.stringify(requestBody, null, 2));
     console.log("请求头：", headers);

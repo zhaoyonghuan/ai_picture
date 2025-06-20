@@ -1,16 +1,10 @@
 import { ImageStylizationService, ImageStylizationResult } from "./image-stylization-service";
 
 export class AicomflyService implements ImageStylizationService {
-  private chatApiKey: string;
   private baseUrl: string;
 
   constructor() {
-    this.chatApiKey = process.env.AICOMFLY_CHAT_API_KEY || process.env.AICOMFLY_API_KEY || "";
     this.baseUrl = process.env.AICOMFLY_CHAT_BASE_URL || "https://ai.comfly.chat";
-    
-    if (!this.chatApiKey) {
-      throw new Error("AICOMFLY_CHAT_API_KEY 或 AICOMFLY_API_KEY 环境变量未设置");
-    }
   }
 
   async stylizeImage(
@@ -20,8 +14,7 @@ export class AicomflyService implements ImageStylizationService {
   ): Promise<ImageStylizationResult> {
     try {
       const promptText = this.getPromptForStyle(styleId);
-      const useApiKey = apiKey || this.chatApiKey;
-      if (!useApiKey) {
+      if (!apiKey) {
         throw new Error("Aicomfly API 密钥未提供");
       }
       const requestBody = {
@@ -51,7 +44,7 @@ export class AicomflyService implements ImageStylizationService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': `Bearer ${useApiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify(requestBody),
       });

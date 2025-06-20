@@ -4,15 +4,8 @@ import FormData from "form-data";
 import { ImageStylizationService, ImageStylizationResult, StyleInfo } from "./image-stylization-service";
 import { styles } from "@/components/picmagic/picmagic-styles";
 
-// 验证 Stability AI API 配置
-const STABILITY_API_KEY = process.env.STABILITY_API_KEY;
 // 使用 Control API Style Guide 端点
 const STABILITY_API_URL = "https://api.stability.ai/v2beta/stable-image/control/style";
-
-if (!STABILITY_API_KEY) {
-  // 在服务初始化时抛出错误，而不是在每次调用时
-  throw new Error("STABILITY_API_KEY 未设置");
-}
 
 // 风格提示词映射
 const stylePrompts: { [key: string]: string } = {
@@ -32,8 +25,12 @@ const stylePrompts: { [key: string]: string } = {
 };
 
 export class StabilityAIService implements ImageStylizationService {
-  async stylizeImage(imagePath: string, styleId: string): Promise<ImageStylizationResult> {
+  async stylizeImage(imagePath: string, styleId: string, apiKey?: string): Promise<ImageStylizationResult> {
     console.log("Entering StabilityAIService.stylizeImage");
+
+    if (!apiKey) {
+      throw new Error("Stability AI API 密钥未提供");
+    }
 
     const selectedStyleOption = styles.find((s) => s.id === styleId);
     const prompt = stylePrompts[styleId] || selectedStyleOption?.description;
@@ -71,7 +68,7 @@ export class StabilityAIService implements ImageStylizationService {
 
     console.log("Calling Stability AI v2 API...");
     console.log("Stability AI API URL:", STABILITY_API_URL);
-    console.log("Stability AI API Key (last 5 chars):", STABILITY_API_KEY ? STABILITY_API_KEY.slice(-5) : "N/A");
+    console.log("Stability AI API Key (last 5 chars):", apiKey ? apiKey.slice(-5) : "N/A");
 
     try {
       const formData = new FormData();
@@ -98,7 +95,7 @@ export class StabilityAIService implements ImageStylizationService {
         formData,
         {
           headers: {
-            'Authorization': `Bearer ${STABILITY_API_KEY}`,
+            'Authorization': `Bearer ${apiKey}`,
             'Accept': 'image/*',
             'Content-Type': 'multipart/form-data'
           },

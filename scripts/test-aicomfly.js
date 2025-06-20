@@ -2,37 +2,26 @@
 
 /**
  * Aicomfly 集成测试脚本
- * 使用方法: node scripts/test-aicomfly.js
+ * 使用方法: node scripts/test-aicomfly.js [API_KEY]
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// 检查环境变量
-function checkEnvironmentVariables() {
-  console.log('🔍 检查环境变量...');
+// 获取命令行参数
+const apiKey = process.argv[2];
+
+// 检查API密钥
+function checkApiKey() {
+  console.log('🔍 检查API密钥...');
   
-  const requiredVars = [
-    'AICOMFLY_API_KEY',
-    'NEXT_PUBLIC_IMAGE_STYLIZATION_PROVIDER'
-  ];
-  
-  const missingVars = [];
-  
-  requiredVars.forEach(varName => {
-    if (!process.env[varName]) {
-      missingVars.push(varName);
-    } else {
-      console.log(`✅ ${varName}: ${varName.includes('KEY') ? '***' + process.env[varName].slice(-4) : process.env[varName]}`);
-    }
-  });
-  
-  if (missingVars.length > 0) {
-    console.error('❌ 缺少必要的环境变量:', missingVars.join(', '));
-    console.log('请在 .env.local 文件中设置这些变量');
+  if (!apiKey) {
+    console.error('❌ 缺少API密钥参数');
+    console.log('使用方法: node scripts/test-aicomfly.js [API_KEY]');
     return false;
   }
   
+  console.log(`✅ API密钥已提供: ***${apiKey.slice(-4)}`);
   return true;
 }
 
@@ -61,18 +50,6 @@ async function testAPIEndpoints() {
       console.error('❌ 风格列表获取失败:', stylesResponse.status, stylesResponse.statusText);
     }
     
-    // 测试环境变量端点
-    console.log('\n🔧 测试环境变量端点...');
-    const envResponse = await fetch(`${baseUrl}/api/test-env`);
-    
-    if (envResponse.ok) {
-      const envData = await envResponse.json();
-      console.log('✅ 环境变量测试成功');
-      console.log('   当前服务提供商:', envData.provider);
-    } else {
-      console.error('❌ 环境变量测试失败:', envResponse.status, envResponse.statusText);
-    }
-    
   } catch (error) {
     console.error('❌ API 测试失败:', error.message);
     console.log('请确保应用正在运行 (npm run dev)');
@@ -87,13 +64,7 @@ function testServiceFactory() {
     // 这里需要模拟 Node.js 环境
     const { ImageStylizationProvider } = require('../config/image-stylization-config');
     
-    if (process.env.NEXT_PUBLIC_IMAGE_STYLIZATION_PROVIDER === ImageStylizationProvider.AICOMFLY) {
-      console.log('✅ 服务提供商配置正确: AICOMFLY');
-    } else {
-      console.log('⚠️  当前服务提供商不是 AICOMFLY');
-      console.log('   当前:', process.env.NEXT_PUBLIC_IMAGE_STYLIZATION_PROVIDER);
-      console.log('   建议设置为: AICOMFLY');
-    }
+    console.log('✅ 服务提供商配置正确: AICOMFLY');
     
   } catch (error) {
     console.error('❌ 服务工厂测试失败:', error.message);
@@ -135,10 +106,10 @@ function checkFileStructure() {
 async function main() {
   console.log('🚀 Aicomfly 集成测试开始...\n');
   
-  const envOk = checkEnvironmentVariables();
+  const apiKeyOk = checkApiKey();
   const filesOk = checkFileStructure();
   
-  if (!envOk || !filesOk) {
+  if (!apiKeyOk || !filesOk) {
     console.log('\n❌ 测试失败，请检查上述问题');
     process.exit(1);
   }
@@ -160,7 +131,7 @@ if (require.main === module) {
 }
 
 module.exports = {
-  checkEnvironmentVariables,
+  checkApiKey,
   testAPIEndpoints,
   testServiceFactory,
   checkFileStructure

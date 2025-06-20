@@ -9,12 +9,7 @@ export function getImageStylizationService(apiKey?: string): ImageStylizationSer
     case ImageStylizationProvider.STABILITY_AI:
       return new StabilityAIService();
     case ImageStylizationProvider.AICOMFLY:
-      const service = new AicomflyService();
-      if (apiKey) {
-        // @ts-ignore
-        service.chatApiKey = apiKey;
-      }
-      return service;
+      return new AicomflyService();
     // 未来其他提供商将在这里添加
     // case ImageStylizationProvider.HUGGING_FACE:
     //   return new HuggingFaceService();

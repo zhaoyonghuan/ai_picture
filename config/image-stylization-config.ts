@@ -6,6 +6,5 @@ export enum ImageStylizationProvider {
   // OPEN_AI = "OPEN_AI",
 }
 
-// 默认服务提供商，可以通过环境变量覆盖
-export const DEFAULT_IMAGE_STYLIZATION_PROVIDER: ImageStylizationProvider = 
-  (process.env.NEXT_PUBLIC_IMAGE_STYLIZATION_PROVIDER as ImageStylizationProvider) || ImageStylizationProvider.AICOMFLY; 
+// 默认服务提供商
+export const DEFAULT_IMAGE_STYLIZATION_PROVIDER: ImageStylizationProvider = ImageStylizationProvider.AICOMFLY; 

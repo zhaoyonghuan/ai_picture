@@ -1,20 +1,18 @@
 async function testAicomflyChatAPI() {
-  const chatApiKey = process.env.AICOMFLY_CHAT_API_KEY || process.env.AICOMFLY_API_KEY;
-  const baseUrl = process.env.AICOMFLY_CHAT_BASE_URL || "https://ai.comfly.chat";
+  const apiKey = process.argv[2];
+  const baseUrl = "https://ai.comfly.chat";
 
   console.log("=== Aicomfly Chat API 测试 ===");
-  console.log("环境变量检查:");
-  console.log("  AICOMFLY_CHAT_API_KEY:", process.env.AICOMFLY_CHAT_API_KEY ? "已设置" : "未设置");
-  console.log("  AICOMFLY_API_KEY:", process.env.AICOMFLY_API_KEY ? "已设置" : "未设置");
-  console.log("  实际使用的 API 密钥:", chatApiKey ? `已设置 (${chatApiKey.slice(0, 8)}...${chatApiKey.slice(-4)})` : "未设置");
-  console.log("  AICOMFLY_CHAT_BASE_URL:", process.env.AICOMFLY_CHAT_BASE_URL || "使用默认值");
-  console.log("  实际使用的 base URL:", baseUrl);
-
-  if (!chatApiKey) {
-    console.error("❌ 错误: 未设置 API 密钥");
-    console.log("请确保在 .env.local 文件中设置了 AICOMFLY_CHAT_API_KEY 或 AICOMFLY_API_KEY");
+  console.log("API密钥检查:");
+  
+  if (!apiKey) {
+    console.error("❌ 错误: 未提供 API 密钥");
+    console.log("使用方法: node scripts/test-aicomfly-chat.js [API_KEY]");
     return;
   }
+  
+  console.log("  实际使用的 API 密钥:", apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : "未设置");
+  console.log("  实际使用的 base URL:", baseUrl);
 
   try {
     // 测试简单的文本请求
@@ -43,7 +41,7 @@ async function testAicomflyChatAPI() {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Authorization': `Bearer ${chatApiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify(testRequestBody),
     });
@@ -64,7 +62,7 @@ async function testAicomflyChatAPI() {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': chatApiKey,
+          'Authorization': apiKey,
         },
         body: JSON.stringify(testRequestBody),
       });
@@ -83,7 +81,7 @@ async function testAicomflyChatAPI() {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'API-Key': chatApiKey,
+          'API-Key': apiKey,
         },
         body: JSON.stringify(testRequestBody),
       });

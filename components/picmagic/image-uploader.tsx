@@ -64,7 +64,7 @@ export function ImageUploader({ onImageUpload, uploadedImage }: ImageUploaderPro
           </Button>
         </div>
       ) : (
-        <div {...getRootProps()} className="space-y-2 py-10">
+        <div {...getRootProps()} className="space-y-1 py-2">
           <input {...getInputProps()} />
           <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
           {isDragActive ? (

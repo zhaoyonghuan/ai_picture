@@ -52,10 +52,10 @@ export function SupportModal({ isOpen, onOpenChange }: SupportModalProps) {
         <div className="space-y-6 py-4">
           <div className="space-y-2 p-4 border rounded-lg">
             <h4 className="font-semibold text-md">购买服务</h4>
-            <p className="text-sm text-muted-foreground">点击下方按钮前往淘宝店铺购买秘钥。</p>
+            <p className="text-sm text-muted-foreground">点击下方按钮前往淘宝店铺购买服务。</p>
             <Button onClick={() => window.open(taobaoLink, "_blank")} className="w-full">
               <ExternalLink className="mr-2 h-4 w-4" />
-              购买秘钥
+              前往商店购买
             </Button>
           </div>
           <div className="space-y-3 p-4 border rounded-lg">

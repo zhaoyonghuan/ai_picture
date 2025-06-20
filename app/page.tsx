@@ -19,6 +19,7 @@ export default function PicMagicPage() {
   const [uploadedImageFile, setUploadedImageFile] = useState<File | null>(null) // 原始图片文件
   const [uploadedCloudinaryUrl, setUploadedCloudinaryUrl] = useState<string | null>(null) // Cloudinary URL
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
+  const [customStyleValue, setCustomStyleValue] = useState<string>("")
   const [selectedPrompt, setSelectedPrompt] = useState<string>("") // 新增：图片修改提示词
 
   // 图像风格化状态
@@ -43,7 +44,7 @@ export default function PicMagicPage() {
   // 处理图片文件上传到 Cloudinary
   const uploadFileToCloudinary = useCallback(async (file: File) => {
     setIsUploading(true)
-    toast({ title: "图片上传中", description: "正在将您的图片上传到服务器..." })
+    toast({ title: "正在努力生成", description: "请稍候，正在上传并处理您的图片..." })
     try {
       const formData = new FormData()
       formData.append("image", file)
@@ -61,7 +62,7 @@ export default function PicMagicPage() {
       
       const imageUrl = data.imageUrl
       setUploadedCloudinaryUrl(imageUrl) // 设置 Cloudinary URL
-      toast({ title: "图片上传成功", description: "图片已成功上传。" })
+      toast({ title: "图片准备就绪", description: "已准备好，请点击生成。" })
       return imageUrl
 
     } catch (error: any) {
@@ -88,7 +89,14 @@ export default function PicMagicPage() {
       return
     }
     if (!selectedStyle) {
-      toast({ title: "未选择风格", description: "请选择一个图片风格。", variant: "destructive" })
+      toast({ title: "未选择风格", description: "请选择一个图片风格或输入自定义风格。", variant: "destructive" })
+      return
+    }
+
+    const finalStyle = selectedStyle === 'custom' ? customStyleValue : selectedStyle
+
+    if (!finalStyle) {
+      toast({ title: "未选择风格", description: "请选择一个图片风格或输入自定义风格。", variant: "destructive" })
       return
     }
 
@@ -110,13 +118,13 @@ export default function PicMagicPage() {
       }
 
       // 2. 调用风格化API
-      toast({ title: "正在生成图片...", description: "AI正在创作中，这可能需要一点时间。" })
+      toast({ title: "正在努力生成...", description: "AI正在创作中，这可能需要一点时间。" })
       const response = await fetch("/api/stylize-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageUrl: finalImageUrl, // 现在传递 URL
-          styleId: selectedStyle,
+          styleId: finalStyle,
           apiKey: apiKey
         }),
       })
@@ -147,6 +155,10 @@ export default function PicMagicPage() {
   }
 
   const handleImageModify = async () => {
+    if (!apiKey) {
+      toast({ title: "未输入秘钥", description: "请先输入秘钥。", variant: "destructive" })
+      return
+    }
     if (!uploadedImageFile) {
       toast({ title: "未上传图片", description: "请先上传一张图片。", variant: "destructive" })
       return
@@ -172,13 +184,14 @@ export default function PicMagicPage() {
         }
       }
 
-      toast({ title: "正在修改图片...", description: "AI正在根据您的提示词修改图片，这可能需要一点时间。" })
+      toast({ title: "正在努力生成...", description: "AI正在根据您的提示词修改图片，这可能需要一点时间。" })
       const response = await fetch("/api/chat-image-modify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageUrl: finalImageUrl,
           promptText: selectedPrompt,
+          apiKey: apiKey
         }),
       })
 
@@ -221,31 +234,14 @@ export default function PicMagicPage() {
     }
 
     try {
-      setStylizationStatus("loading")
-      const response = await fetch("/api/download-stylized", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imagePath: uploadedImageFile,
-          neuralStyleId: selectedStyle,
-          apiKey: apiKey
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || "下载失败")
-      }
-
-      // 下载图片
+      // 直接下载图片
       const link = document.createElement("a")
-      link.href = data.stylizedImageUrl
+      link.href = stylizedImageUrl
       link.download = `picmagic_stylized_${Date.now()}.png`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      toast({ title: "下载成功", description: "高清图片已开始下载" })
+      toast({ title: "下载成功", description: "图片已开始下载" })
     } catch (error: any) {
       console.error("下载错误:", error)
       toast({ 
@@ -253,8 +249,6 @@ export default function PicMagicPage() {
         description: error.message || "下载过程中发生错误，请重试。", 
         variant: "destructive" 
       })
-    } finally {
-      setStylizationStatus("success")
     }
   }
 
@@ -271,128 +265,62 @@ export default function PicMagicPage() {
       <SupportModal isOpen={isBuyModalOpen} onOpenChange={setIsBuyModalOpen} />
       <header className="border-b bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <KeyValidator
-            apiKey={apiKey}
-            setApiKey={setApiKey}
+        <KeyValidator
+          apiKey={apiKey}
+          setApiKey={setApiKey}
             onOpenSupportModal={() => setIsBuyModalOpen(true)}
-          />
+        />
           <ThemeToggle />
         </div>
       </header>
 
       <main className="flex-grow container mx-auto px-4 py-8">
-        <Tabs defaultValue="stylization" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="stylization">图像风格化</TabsTrigger>
-            <TabsTrigger value="image-modify">图片修改</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="stylization">
-            <div className="grid lg:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <div className="card p-6 bg-card">
-                  <ImageUploader onImageUpload={setUploadedImageFile} uploadedImage={uploadedImageFile} />
-                </div>
-                <div className="card p-6 bg-card">
-                  <StyleSelector selectedStyle={selectedStyle} onStyleSelect={setSelectedStyle} />
-                </div>
-                <Button
-                  onClick={handleGenerate}
-                  disabled={
-                    stylizationStatus === "loading" || 
-                    isUploading || 
-                    !uploadedImageFile || 
-                    !selectedStyle
-                  }
-                  className="w-full py-6 text-lg button-primary"
-                  size="lg"
-                >
-                  {isUploading ? <Upload className="mr-2 h-5 w-5 animate-pulse" /> : <Wand2 className="mr-2 h-5 w-5" />}
-                  {isUploading ? "上传中..." : stylizationStatus === "loading" ? "生成中..." : "生成预览"}
-                </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                  ⚠️ 预览效果仅供参考，下载高清图片需要验证秘钥。
-                </p>
+        <div className="w-full">
+          {/* 只保留风格化内容 */}
+          <div className="grid lg:grid-cols-2 gap-8">
+            <div className="flex flex-col gap-2">
+              <div className="card bg-card">
+                <ImageUploader onImageUpload={setUploadedImageFile} uploadedImage={uploadedImageFile} />
               </div>
-
-              <div className="sticky top-4">
-                <ResultDisplay
-                  status={stylizationStatus}
-                  imageUrl={stylizedImageUrl}
-                  imageUrls={stylizedImageUrls}
-                  errorMessage={stylizationErrorMessage}
-                  onRetry={handleGenerate}
-                  onDownload={handleDownload}
+              <div className="card bg-card">
+                <StyleSelector 
+                  selectedStyle={selectedStyle} 
+                  onStyleSelect={setSelectedStyle} 
+                  customStyleValue={customStyleValue}
+                  onCustomStyleChange={setCustomStyleValue}
                 />
               </div>
+              <Button
+                onClick={handleGenerate}
+                disabled={
+                  stylizationStatus === "loading" ||
+                  isUploading ||
+                  !uploadedImageFile ||
+                  !selectedStyle
+                }
+                className="w-full py-6 text-lg button-primary"
+                size="lg"
+              >
+                {isUploading ? <Upload className="mr-2 h-5 w-5 animate-pulse" /> : <Wand2 className="mr-2 h-5 w-5" />}
+                {isUploading ? "上传中..." : stylizationStatus === "loading" ? "生成中..." : "生成预览"}
+              </Button>
+              <p className="text-xs text-center text-muted-foreground">
+                输入秘钥选择想要的风格后点击生成预览
+              </p>
             </div>
-          </TabsContent>
 
-          <TabsContent value="image-modify">
-            <div className="grid lg:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <div className="card p-6 bg-card">
-                  <ImageUploader onImageUpload={setUploadedImageFile} uploadedImage={uploadedImageFile} />
-                </div>
-                <div className="card p-6 bg-card">
-                  <PromptInput selectedPrompt={selectedPrompt} onPromptChange={setSelectedPrompt} />
-                </div>
-                <Button
-                  onClick={handleImageModify}
-                  disabled={
-                    imageModifyStatus === "loading" || 
-                    isUploading || 
-                    !uploadedImageFile || 
-                    !selectedPrompt
-                  }
-                  className="w-full py-6 text-lg button-primary"
-                  size="lg"
-                >
-                  {isUploading ? <Upload className="mr-2 h-5 w-5 animate-pulse" /> : <BrainCircuit className="mr-2 h-5 w-5" />}
-                  {isUploading ? "上传中..." : imageModifyStatus === "loading" ? "修改中..." : "修改图片"}
-                </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                  您可以根据提示词修改图片。
-                </p>
-              </div>
-
-              <div className="sticky top-4">
-                {imageModifyStatus === "loading" && (
-                  <div className="flex flex-col items-center justify-center h-full min-h-[300px] bg-muted/40 rounded-lg">
-                    <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-                    <p className="text-muted-foreground">AI 正在努力修改图片...</p>
-                  </div>
-                )}
-                {imageModifyStatus === "error" && imageModifyErrorMessage && (
-                  <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg flex flex-col items-center justify-center h-full min-h-[300px]">
-                    <p className="font-semibold mb-2">错误！</p>
-                    <p className="text-center">{imageModifyErrorMessage}</p>
-                    <Button onClick={handleImageModify} variant="outline" className="mt-4">重试</Button>
-                  </div>
-                )}
-                {imageModifyStatus === "success" && modifiedImageUrls.length > 0 && (
-                  <div className="space-y-4">
-                    <h4 className="text-lg font-semibold">修改结果预览</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {modifiedImageUrls.map((url, index) => (
-                        <div key={index} className="relative aspect-square rounded-md overflow-hidden border">
-                          <Image src={url} alt={`修改结果 ${index + 1}`} layout="fill" objectFit="contain" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                 {imageModifyStatus === "success" && modifiedImageUrls.length === 0 && (
-                  <div className="p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg flex flex-col items-center justify-center h-full min-h-[300px]">
-                    <p className="font-semibold mb-2">提示！</p>
-                    <p className="text-center">图片修改请求成功，但响应中未找到修改后的图片URL。请检查控制台输出。</p>
-                    <Button onClick={handleImageModify} variant="outline" className="mt-4">重试</Button>
-                  </div>
-                )}
-              </div>
+            <div className="sticky top-4">
+              <ResultDisplay
+                    status={stylizationStatus}
+                    imageUrl={stylizedImageUrl}
+                    imageUrls={stylizedImageUrls}
+                    errorMessage={stylizationErrorMessage}
+                onRetry={handleGenerate}
+                onDownload={handleDownload}
+              />
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </main>
 
       <SupportModal isOpen={isSupportModalOpen} onOpenChange={setIsSupportModalOpen} />
