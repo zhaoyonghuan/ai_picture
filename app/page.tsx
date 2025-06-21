@@ -123,8 +123,9 @@ export default function PicMagicPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          imageUrl: finalImageUrl, // 现在传递 URL
-          styleId: finalStyle,
+          imageUrl: finalImageUrl,
+          style: finalStyle,
+          provider: "aicomfly", // 默认使用 aicomfly
           apiKey: apiKey
         }),
       })
@@ -132,15 +133,22 @@ export default function PicMagicPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || data.message || "图片生成失败")
+        throw new Error(data.details || data.error || data.message || "图片生成失败")
       }
 
-      setStylizedImageUrl(data.previewUrl)
-      setStylizedImageUrls(data.imageUrls || [data.previewUrl]) // 设置多张图片数组
+      // 从 data.stylizedImage 中解构出需要的数据
+      const { previewUrl, imageUrls, styleNameForDisplay } = data.stylizedImage;
+
+      if (!previewUrl) {
+        throw new Error("API响应成功，但未返回有效的预览图片URL。")
+      }
+
+      setStylizedImageUrl(previewUrl)
+      setStylizedImageUrls(imageUrls || [previewUrl]) // 设置多张图片数组
       setStylizationStatus("success")
       toast({ 
         title: "生成成功！", 
-        description: `图片已成功应用${data.style}风格。${data.imageUrls && data.imageUrls.length > 1 ? `生成了 ${data.imageUrls.length} 张图片。` : ''}` 
+        description: `图片已成功应用${styleNameForDisplay}风格。${imageUrls && imageUrls.length > 1 ? `生成了 ${imageUrls.length} 张图片。` : ''}` 
       })
     } catch (error: any) {
       console.error("图片生成错误:", error)

@@ -39,13 +39,20 @@ export class AicomflyService implements ImageStylizationService {
         ],
       };
 
+      const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      };
+
+      console.log("向 Aicomfly 发起请求...");
+      console.log("请求 URL:", `${this.baseUrl}/v1/chat/completions`);
+      console.log("请求头 (Headers):", JSON.stringify(headers, null, 2));
+      console.log("请求体 (Body):", JSON.stringify(requestBody, null, 2));
+
       const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
+        headers: headers,
         body: JSON.stringify(requestBody),
       });
 
@@ -88,7 +95,7 @@ export class AicomflyService implements ImageStylizationService {
         styleNameForDisplay: styleName,
       };
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Aicomfly 图像风格化（通过 Chat API）失败:", error);
       throw new Error(`Aicomfly 图像风格化失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }

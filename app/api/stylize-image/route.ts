@@ -3,40 +3,49 @@ import { getImageStylizationService } from "@/services/image-stylization/image-s
 
 export async function POST(request: Request) {
   console.log("Entering POST function for stylize-image (API Route)");
+  console.log("Stylize Image API route called");
   try {
-    const { imageUrl, styleId, apiKey } = await request.json();
-    console.log("Received imageUrl:", imageUrl ? "length " + imageUrl.length : "null", "styleId:", styleId, "apiKey:", apiKey ? "[REDACTED]" : "null");
+    const {
+      imageUrl,
+      style,
+      customStyle,
+      apiKey,
+      provider,
+    } = await request.json();
+    console.log("Received imageUrl:", imageUrl ? "length " + imageUrl.length : "null", "style:", style, "customStyle:", customStyle, "apiKey:", apiKey ? "[REDACTED]" : "null", "provider:", provider);
 
-    if (!imageUrl || !styleId || !apiKey) {
+    if (!imageUrl || !style || !apiKey || !provider) {
       console.log("Returning 400: Missing parameters");
       return NextResponse.json({ 
         message: !apiKey ? "请先输入秘钥" : "缺少必要参数" 
       }, { status: 400 });
     }
 
-    // 通过工厂函数获取当前配置的服务实例，传递 apiKey
-    const imageStylizationService = getImageStylizationService(apiKey);
-    // 调用通用服务接口的方法，传递 imageUrl、styleId
-    const { previewUrl, imageUrls, styleNameForDisplay } = await imageStylizationService.stylizeImage(imageUrl, styleId, apiKey);
-    console.log("Generated preview URL length:", previewUrl.length);
-    console.log("Total images generated:", imageUrls.length);
+    if (!apiKey) {
+      return NextResponse.json({ error: "API key is required" }, { status: 400 });
+    }
 
-    console.log("Returning 200: Image stylization successful");
-    return NextResponse.json({
-      previewUrl: previewUrl,
-      imageUrls: imageUrls,
-      style: styleNameForDisplay,
-      imageUrl: imageUrl,
-    });
+    console.log(`Received stylize request with provider: ${provider}, style: ${style}`);
+
+    const imageStylizationService = getImageStylizationService(provider);
+
+    const stylizedImage = await imageStylizationService.stylizeImage(
+      imageUrl,
+      style,
+      apiKey
+    );
+
+    console.log("Image stylized successfully");
+    return NextResponse.json({ stylizedImage });
 
   } catch (error: any) {
-    console.error("Error in stylize-image API route:\n", error);
+    console.error("Error in stylize-image API:", error);
     return NextResponse.json(
-      {
-        message: "生成预览失败",
-        error: error.message || "未知错误",
-        details: error.stack,
-      },
+      { 
+        error: "Failed to stylize image.",
+        details: error.message,
+        stack: error.stack, // For debugging, might want to remove in production
+      }, 
       { status: 500 }
     );
   }

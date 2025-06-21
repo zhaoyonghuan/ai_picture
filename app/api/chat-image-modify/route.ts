@@ -95,6 +95,7 @@ export async function POST(req: Request) {
       {
         error: "调用 Aicomfly Chat Image Modify API 失败",
         details: error.message,
+        stack: error.stack,
       },
       { status: 500 }
     );
