@@ -44,9 +44,12 @@ export async function POST(req: Request) {
     console.log(`[TASK ${taskId}] ✅ Task record created in database.`);
 
     // 3. Asynchronously invoke the Edge Function to process the task
-    // We don't wait for the function to finish, just trigger it.
+    // We explicitly set the Authorization header using the anon key, as recommended for server-to-server calls.
     const { error: invokeError } = await supabaseAdminClient.functions.invoke('stylize-image-worker', {
       body: { record: { id: taskId } }, // Pass the task ID to the worker
+      headers: {
+        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+      }
     });
 
     if (invokeError) {
