@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from 'crypto';
+import { waitUntil } from '@vercel/functions';
 
 // 这个接口现在是同步的，它会触发一个后台函数
 export async function POST(req: Request) {
@@ -41,25 +42,30 @@ export async function POST(req: Request) {
       style,
       apiKey,
     };
-    console.log("📦 传递给后台的参数:");
-    console.log("- taskId:", taskId);
-    console.log("- imageUrl:", imageUrl ? `${imageUrl.substring(0, 50)}...` : "undefined");
-    console.log("- style:", style);
-    console.log("- apiKey:", apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : "undefined");
+    console.log("📦 传递给后台的参数:", JSON.stringify(backgroundPayload, (key, value) => key === 'apiKey' && value ? 'SET' : value, 2));
 
-    // 异步调用后台函数，但不等待其完成（fire and forget）
-    fetch(invokeUrl.toString(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(backgroundPayload),
-    }).catch(err => {
-      // 这里的错误只是调用后台函数本身的失败，需要记录
-      console.error(`❌ Failed to invoke background function for task ${taskId}:`, err);
-    });
+    // 异步调用后台函数，并确保它能执行完成
+    waitUntil(
+      fetch(invokeUrl.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(backgroundPayload),
+      }).then(async response => {
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ 后台函数调用失败 (HTTP ${response.status}) for task ${taskId}. 响应: ${errorText}`);
+        } else {
+          console.log(`✅ 成功调用后台函数 for task ${taskId}`);
+        }
+      }).catch(err => {
+        // 这里的错误只是调用后台函数本身的失败，需要记录
+        console.error(`❌ 调用后台函数时发生网络错误 for task ${taskId}:`, err);
+      })
+    );
 
-    console.log("✅ 后台任务已启动，返回taskId给客户端");
+    console.log("✅ 后台任务已通过 waitUntil 启动，返回taskId给客户端");
     // 3. 立即将任务 ID 返回给客户端
     return NextResponse.json({ taskId });
 
