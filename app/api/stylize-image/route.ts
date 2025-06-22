@@ -35,6 +35,7 @@ export async function POST(req: Request) {
       .insert(insertPayload);
     console.log(`[TASK ${taskId}] 📝 Supabase insert 返回:`, { insertError, insertData });
 
+    // 只要 insertError 为 null 就视为成功，不管 insertData 是否为 null
     if (insertError) {
       console.error(`[TASK ${taskId}] ❌ Supabase insert error:`, insertError.message, insertError);
       throw new Error(`Failed to create task in database: ${insertError.message}`);
