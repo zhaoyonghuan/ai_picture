@@ -1,51 +1,75 @@
 import { NextResponse } from "next/server";
-import { getImageStylizationService } from "@/services/image-stylization/image-stylization-factory";
+import { randomUUID } from 'crypto';
 
-export async function POST(request: Request) {
-  console.log("Entering POST function for stylize-image (API Route)");
-  console.log("Stylize Image API route called");
+// 这个接口现在是同步的，它会触发一个后台函数
+export async function POST(req: Request) {
   try {
-    const {
+    const { imageUrl, style, provider, apiKey } = await req.json();
+
+    // 详细日志：检查接收到的参数
+    console.log("=== /api/stylize-image 接收到的参数 ===");
+    console.log("imageUrl:", imageUrl ? `${imageUrl.substring(0, 50)}...` : "undefined");
+    console.log("style:", style);
+    console.log("provider:", provider);
+    console.log("apiKey:", apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : "undefined");
+    console.log("apiKey 长度:", apiKey ? apiKey.length : 0);
+    console.log("apiKey 类型:", typeof apiKey);
+
+    if (!imageUrl || !style || !provider || !apiKey) {
+      console.error("❌ 参数验证失败:");
+      console.error("- imageUrl:", !imageUrl ? "缺失" : "✓");
+      console.error("- style:", !style ? "缺失" : "✓");
+      console.error("- provider:", !provider ? "缺失" : "✓");
+      console.error("- apiKey:", !apiKey ? "缺失" : "✓");
+      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+    }
+
+    // 1. 生成唯一的任务 ID
+    const taskId = randomUUID();
+    console.log("✅ 生成任务ID:", taskId);
+
+    // 2. 准备触发后台函数的请求
+    // 注意：这里的 URL 是相对于网站根目录的，Netlify 会正确路由
+    // 我们需要确保 fetch 能够调用到内部的后台函数
+    const invokeUrl = new URL('/api/stylize-image-background', req.url);
+    console.log("📡 准备调用后台API:", invokeUrl.toString());
+
+    // 准备传递给后台的参数
+    const backgroundPayload = {
+      taskId,
       imageUrl,
       style,
-      customStyle,
       apiKey,
-      provider,
-    } = await request.json();
-    console.log("Received imageUrl:", imageUrl ? "length " + imageUrl.length : "null", "style:", style, "customStyle:", customStyle, "apiKey:", apiKey ? "[REDACTED]" : "null", "provider:", provider);
+    };
+    console.log("📦 传递给后台的参数:");
+    console.log("- taskId:", taskId);
+    console.log("- imageUrl:", imageUrl ? `${imageUrl.substring(0, 50)}...` : "undefined");
+    console.log("- style:", style);
+    console.log("- apiKey:", apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : "undefined");
 
-    if (!imageUrl || !style || !apiKey || !provider) {
-      console.log("Returning 400: Missing parameters");
-      return NextResponse.json({ 
-        message: !apiKey ? "请先输入秘钥" : "缺少必要参数" 
-      }, { status: 400 });
-    }
+    // 异步调用后台函数，但不等待其完成（fire and forget）
+    fetch(invokeUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(backgroundPayload),
+    }).catch(err => {
+      // 这里的错误只是调用后台函数本身的失败，需要记录
+      console.error(`❌ Failed to invoke background function for task ${taskId}:`, err);
+    });
 
-    if (!apiKey) {
-      return NextResponse.json({ error: "API key is required" }, { status: 400 });
-    }
-
-    console.log(`Received stylize request with provider: ${provider}, style: ${style}`);
-
-    const imageStylizationService = getImageStylizationService(provider);
-
-    const stylizedImage = await imageStylizationService.stylizeImage(
-      imageUrl,
-      style,
-      apiKey
-    );
-
-    console.log("Image stylized successfully");
-    return NextResponse.json({ stylizedImage });
+    console.log("✅ 后台任务已启动，返回taskId给客户端");
+    // 3. 立即将任务 ID 返回给客户端
+    return NextResponse.json({ taskId });
 
   } catch (error: any) {
-    console.error("Error in stylize-image API:", error);
+    console.error('❌ Error in main stylize-image API:', error);
     return NextResponse.json(
-      { 
-        error: "Failed to stylize image.",
+      {
+        error: 'Failed to initiate stylization task.',
         details: error.message,
-        stack: error.stack, // For debugging, might want to remove in production
-      }, 
+      },
       { status: 500 }
     );
   }

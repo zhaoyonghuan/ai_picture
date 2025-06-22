@@ -2,9 +2,14 @@ import { ImageStylizationService, ImageStylizationResult } from "./image-styliza
 
 export class AicomflyService implements ImageStylizationService {
   private baseUrl: string;
+  private apiKey: string | undefined;
 
-  constructor() {
+  constructor(apiKey?: string) {
     this.baseUrl = process.env.AICOMFLY_CHAT_BASE_URL || "https://ai.comfly.chat";
+    this.apiKey = apiKey;
+    console.log("🔧 AicomflyService 构造函数被调用");
+    console.log("- 传入的 apiKey:", apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : "undefined");
+    console.log("- 存储的 apiKey:", this.apiKey ? `已设置 (${this.apiKey.slice(0, 8)}...${this.apiKey.slice(-4)})` : "undefined");
   }
 
   async stylizeImage(
@@ -12,11 +17,29 @@ export class AicomflyService implements ImageStylizationService {
     styleId: string,
     apiKey?: string
   ): Promise<ImageStylizationResult> {
+    console.log("=== AicomflyService.stylizeImage 开始 ===");
+    console.log("接收到的参数:");
+    console.log("- imageUrl:", imageUrl ? `${imageUrl.substring(0, 50)}...` : "undefined");
+    console.log("- styleId:", styleId);
+    console.log("- 传入的 apiKey:", apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : "undefined");
+    console.log("- 构造函数存储的 apiKey:", this.apiKey ? `已设置 (${this.apiKey.slice(0, 8)}...${this.apiKey.slice(-4)})` : "undefined");
+    console.log("- baseUrl:", this.baseUrl);
+
     try {
       const promptText = this.getPromptForStyle(styleId);
-      if (!apiKey) {
+      console.log("生成的提示词:", promptText);
+
+      // 优先使用传入的 apiKey，如果没有则使用构造函数存储的
+      const finalApiKey = apiKey || this.apiKey;
+      console.log("最终使用的 apiKey:", finalApiKey ? `已设置 (${finalApiKey.slice(0, 8)}...${finalApiKey.slice(-4)})` : "undefined");
+
+      if (!finalApiKey) {
+        console.error("❌ Aicomfly API 密钥未提供");
         throw new Error("Aicomfly API 密钥未提供");
       }
+
+      console.log("✅ API密钥验证通过");
+
       const requestBody = {
         model: "gpt-4o-image",
         stream: false,
@@ -42,10 +65,10 @@ export class AicomflyService implements ImageStylizationService {
       const headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${finalApiKey}`,
       };
 
-      console.log("向 Aicomfly 发起请求...");
+      console.log("🌐 向 Aicomfly 发起请求...");
       console.log("请求 URL:", `${this.baseUrl}/v1/chat/completions`);
       console.log("请求头 (Headers):", JSON.stringify(headers, null, 2));
       console.log("请求体 (Body):", JSON.stringify(requestBody, null, 2));
@@ -56,47 +79,81 @@ export class AicomflyService implements ImageStylizationService {
         body: JSON.stringify(requestBody),
       });
 
+      console.log("📡 Aicomfly API 响应状态:", response.status, response.statusText);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         const errorMessage = errorData?.error?.message || errorData?.message || await response.text();
+        console.error("❌ Aicomfly API 请求失败:", errorMessage);
         throw new Error(`Aicomfly API 请求失败: ${errorMessage}`);
       }
 
       const result = await response.json();
+      console.log("✅ Aicomfly API 请求成功");
+      console.log("响应结构:", {
+        hasChoices: !!result.choices,
+        choicesLength: result.choices?.length || 0,
+        hasMessage: !!result.choices?.[0]?.message,
+        hasContent: !!result.choices?.[0]?.message?.content
+      });
 
       const messageContent = result.choices?.[0]?.message?.content;
       let stylizedImageUrls: string[] = [];
 
+      console.log("🔍 解析响应内容...");
+      console.log("messageContent 类型:", typeof messageContent);
+      console.log("messageContent 是否为数组:", Array.isArray(messageContent));
+
       if (typeof messageContent === 'string') {
+        console.log("📝 处理字符串类型的响应内容");
         // 提取所有图片 URL
         const regex = /!\[.*\]\((https?:\/\/[^)]+\.(?:png|jpe?g|gif|webp))\)/g;
         let match;
         while ((match = regex.exec(messageContent)) !== null) {
           stylizedImageUrls.push(match[1]);
+          console.log("找到图片URL:", match[1]);
         }
       } else if (Array.isArray(messageContent)) {
+        console.log("📝 处理数组类型的响应内容");
         // 从数组内容中提取所有图片
         for (const item of messageContent) {
           if (item.type === "image_url" && item.image_url?.url) {
             stylizedImageUrls.push(item.image_url.url);
+            console.log("找到图片URL:", item.image_url.url);
           }
         }
       }
 
+      console.log("📊 提取到的图片URL数量:", stylizedImageUrls.length);
+
       if (stylizedImageUrls.length === 0) {
+        console.error("❌ Aicomfly Chat API 响应中未找到图片 URL");
+        console.log("完整的 messageContent:", messageContent);
         throw new Error("Aicomfly Chat API 响应中未找到图片 URL");
       }
 
       const styleName = this.getStyleNameForDisplay(styleId);
+      console.log("🎨 风格名称:", styleName);
 
-      return {
+      const finalResult = {
         previewUrl: stylizedImageUrls[0], // 保持向后兼容，显示第一张图片
         imageUrls: stylizedImageUrls, // 新增：所有图片的 URL 数组
         styleNameForDisplay: styleName,
       };
 
+      console.log("✅ AicomflyService.stylizeImage 完成");
+      console.log("返回结果:", {
+        previewUrl: finalResult.previewUrl ? `${finalResult.previewUrl.substring(0, 50)}...` : "undefined",
+        imageUrlsCount: finalResult.imageUrls.length,
+        styleNameForDisplay: finalResult.styleNameForDisplay
+      });
+
+      return finalResult;
+
     } catch (error: any) {
-      console.error("Aicomfly 图像风格化（通过 Chat API）失败:", error);
+      console.error("❌ Aicomfly 图像风格化（通过 Chat API）失败:", error);
+      console.error("错误详情:", error.message);
+      console.error("错误堆栈:", error.stack);
       throw new Error(`Aicomfly 图像风格化失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }

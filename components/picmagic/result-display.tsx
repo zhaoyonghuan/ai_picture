@@ -2,12 +2,12 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Download, ImageIcon, AlertTriangle, RotateCcw, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
+import { Download, ImageIcon, AlertTriangle, RotateCcw, Loader2, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
 import NextImage from "next/image" // Renamed to avoid conflict with Lucide's Image
 import { useState } from "react"
 
-interface ResultDisplayProps {
-  status: "idle" | "loading" | "success" | "error"
+export interface ResultDisplayProps {
+  status: "idle" | "loading" | "polling" | "success" | "error"
   imageUrl?: string | null
   imageUrls?: string[] // 新增：支持多张图片
   errorMessage?: string | null
@@ -64,71 +64,52 @@ export function ResultDisplay({ status, imageUrl, imageUrls, errorMessage, onRet
             <p className="font-medium">正在生成中，请稍候...</p>
           </div>
         )}
+        {status === "polling" && (
+          <div className="space-y-2">
+            <RefreshCw className="mx-auto h-16 w-16 animate-spin text-primary" />
+            <p className="font-medium">正在处理中，请稍候...</p>
+            <p className="text-sm text-muted-foreground">后台正在处理您的图片</p>
+          </div>
+        )}
         {status === "success" && currentImage && (
           <div className="space-y-4 w-full">
-            <div className="relative aspect-square max-w-md mx-auto border rounded-lg overflow-hidden">
-              <NextImage src={currentImage} alt={`生成的图片 ${currentImageIndex + 1}`} layout="fill" objectFit="contain" />
-              
-              {/* 多图片导航按钮 */}
-              {hasMultipleImages && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-background/80 hover:bg-background"
-                    onClick={prevImage}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-background/80 hover:bg-background"
-                    onClick={nextImage}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
+            <div className="relative aspect-square w-full max-w-md mx-auto">
+              <img
+                src={currentImage}
+                alt="风格化图片"
+                className="w-full h-full object-cover rounded-lg"
+              />
             </div>
-            
-            {/* 图片缩略图指示器 */}
             {hasMultipleImages && (
               <div className="flex justify-center space-x-2">
-                {displayImages.map((_, index) => (
-                  <button
-                    key={index}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      index === currentImageIndex ? 'bg-primary' : 'bg-muted'
-                    }`}
-                    onClick={() => setCurrentImageIndex(index)}
-                  />
-                ))}
+                <Button variant="outline" size="sm" onClick={prevImage}>
+                  上一张
+                </Button>
+                <Button variant="outline" size="sm" onClick={nextImage}>
+                  下一张
+                </Button>
               </div>
             )}
-            
-            <div className="flex flex-col sm:flex-row gap-2 justify-center">
-              <Button onClick={downloadCurrentImage} className="w-full sm:w-auto">
+            <div className="flex justify-center space-x-2">
+              <Button onClick={downloadCurrentImage} className="flex items-center">
                 <Download className="mr-2 h-4 w-4" />
-                下载当前图片
+                下载图片
               </Button>
-              {hasMultipleImages && (
-                <Button onClick={onDownload} variant="outline" className="w-full sm:w-auto">
-              <Download className="mr-2 h-4 w-4" />
-                  下载所有图片
-            </Button>
-              )}
             </div>
           </div>
         )}
         {status === "error" && (
-          <div className="space-y-4 text-red-500">
-            <AlertTriangle className="mx-auto h-16 w-16" />
-            <p className="font-medium">生成失败</p>
-            <p className="text-sm">{errorMessage || "发生未知错误，请稍后重试。"}</p>
+          <div className="space-y-4">
+            <div className="space-y-2 text-destructive">
+              <ImageIcon className="mx-auto h-16 w-16" />
+              <p className="font-medium">生成失败</p>
+              {errorMessage && (
+                <p className="text-sm text-muted-foreground max-w-xs">{errorMessage}</p>
+              )}
+            </div>
             {onRetry && (
               <Button onClick={onRetry} variant="outline">
-                <RotateCcw className="mr-2 h-4 w-4" />
+                <RefreshCw className="mr-2 h-4 w-4" />
                 重试
               </Button>
             )}

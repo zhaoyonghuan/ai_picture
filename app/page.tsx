@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { KeyValidator } from "@/components/picmagic/key-validator"
 import { ImageUploader } from "@/components/picmagic/image-uploader"
@@ -13,6 +13,9 @@ import { useToast } from "@/hooks/use-toast"
 import { Wand2, Upload, BrainCircuit, Loader2 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from "next/image" // 用于显示修改后的多张图片
+import { useTheme } from "next-themes"
+
+type StylizationStatus = "idle" | "loading" | "polling" | "success" | "error"
 
 export default function PicMagicPage() {
   const [apiKey, setApiKey] = useState<string>("")
@@ -23,7 +26,7 @@ export default function PicMagicPage() {
   const [selectedPrompt, setSelectedPrompt] = useState<string>("") // 新增：图片修改提示词
 
   // 图像风格化状态
-  const [stylizationStatus, setStylizationStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [stylizationStatus, setStylizationStatus] = useState<StylizationStatus>("idle")
   const [stylizedImageUrl, setStylizedImageUrl] = useState<string | null>(null)
   const [stylizedImageUrls, setStylizedImageUrls] = useState<string[]>([]) // 新增：多张风格化图片
   const [stylizationErrorMessage, setStylizationErrorMessage] = useState<string | null>(null)
@@ -40,6 +43,10 @@ export default function PicMagicPage() {
 
   // 右下角按钮控制 SupportModal
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false)
+
+  // 新增：用于跟踪轮询的定时器和任务ID
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
 
   // 处理图片文件上传到 Cloudinary
   const uploadFileToCloudinary = useCallback(async (file: File) => {
@@ -80,15 +87,26 @@ export default function PicMagicPage() {
   }, [toast])
 
   const handleGenerate = async () => {
+    console.log("=== 前端 handleGenerate 开始 ===");
+    console.log("当前状态:");
+    console.log("- apiKey:", apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : "undefined");
+    console.log("- apiKey 长度:", apiKey ? apiKey.length : 0);
+    console.log("- uploadedImageFile:", uploadedImageFile ? "已上传" : "未上传");
+    console.log("- selectedStyle:", selectedStyle);
+    console.log("- customStyleValue:", customStyleValue);
+
     if (!apiKey) {
+      console.error("❌ 前端验证失败: 未输入秘钥");
       toast({ title: "未输入秘钥", description: "请先输入秘钥。", variant: "destructive" })
       return
     }
     if (!uploadedImageFile) {
+      console.error("❌ 前端验证失败: 未上传图片");
       toast({ title: "未上传图片", description: "请先上传一张图片。", variant: "destructive" })
       return
     }
     if (!selectedStyle) {
+      console.error("❌ 前端验证失败: 未选择风格");
       toast({ title: "未选择风格", description: "请选择一个图片风格或输入自定义风格。", variant: "destructive" })
       return
     }
@@ -96,71 +114,152 @@ export default function PicMagicPage() {
     const finalStyle = selectedStyle === 'custom' ? customStyleValue : selectedStyle
 
     if (!finalStyle) {
+      console.error("❌ 前端验证失败: 最终风格为空");
       toast({ title: "未选择风格", description: "请选择一个图片风格或输入自定义风格。", variant: "destructive" })
       return
     }
 
+    console.log("✅ 前端验证通过，最终风格:", finalStyle);
+
     setStylizationStatus("loading")
     setStylizedImageUrl(null)
-    setStylizedImageUrls([]) // 重置多张图片数组
+    setStylizedImageUrls([])
     setStylizationErrorMessage(null)
+    setCurrentTaskId(null); // 清空旧任务ID
+    
+    // 停止任何可能正在进行的旧轮询
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
 
     try {
       let finalImageUrl = uploadedCloudinaryUrl;
 
       // 如果还没有 Cloudinary URL，则先上传图片
       if (!finalImageUrl) {
+        console.log("📤 准备上传图片到 Cloudinary...");
         toast({ title: "准备生成图片", description: "正在上传图片并准备调用风格化API。" })
         finalImageUrl = await uploadFileToCloudinary(uploadedImageFile);
         if (!finalImageUrl) {
           throw new Error("图片上传到 Cloudinary 失败");
         }
+        console.log("✅ 图片上传成功:", finalImageUrl ? `${finalImageUrl.substring(0, 50)}...` : "undefined");
+      } else {
+        console.log("✅ 使用已上传的图片URL:", finalImageUrl ? `${finalImageUrl.substring(0, 50)}...` : "undefined");
       }
 
-      // 2. 调用风格化API
-      toast({ title: "正在努力生成...", description: "AI正在创作中，这可能需要一点时间。" })
+      // 1. 调用主 API，获取 taskId
+      console.log("🚀 准备调用 /api/stylize-image...");
+      console.log("请求参数:");
+      console.log("- imageUrl:", finalImageUrl ? `${finalImageUrl.substring(0, 50)}...` : "undefined");
+      console.log("- style:", finalStyle);
+      console.log("- provider:", "aicomfly");
+      console.log("- apiKey:", apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : "undefined");
+
+      toast({ title: "正在创建任务...", description: "正在向服务器提交生成任务。" })
       const response = await fetch("/api/stylize-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageUrl: finalImageUrl,
           style: finalStyle,
-          provider: "aicomfly", // 默认使用 aicomfly
+          provider: "aicomfly",
           apiKey: apiKey
         }),
-      })
+      });
 
-      const data = await response.json()
+      console.log("📡 /api/stylize-image 响应状态:", response.status, response.statusText);
+
+      const data = await response.json();
+      console.log("📄 /api/stylize-image 响应数据:", data);
 
       if (!response.ok) {
-        throw new Error(data.details || data.error || data.message || "图片生成失败")
+        console.error("❌ /api/stylize-image 请求失败:", data);
+        throw new Error(data.details || data.error || data.message || "创建任务失败");
       }
 
-      // 从 data.stylizedImage 中解构出需要的数据
-      const { previewUrl, imageUrls, styleNameForDisplay } = data.stylizedImage;
-
-      if (!previewUrl) {
-        throw new Error("API响应成功，但未返回有效的预览图片URL。")
+      if (!data.taskId) {
+        console.error("❌ 响应中缺少 taskId:", data);
+        throw new Error("未能从服务器获取任务ID");
       }
+      
+      const { taskId } = data;
+      console.log("✅ 成功获取任务ID:", taskId);
+      setCurrentTaskId(taskId);
+      setStylizationStatus("polling");
+      toast({ title: "任务已提交", description: `任务ID: ${taskId}，正在排队等待处理...` });
 
-      setStylizedImageUrl(previewUrl)
-      setStylizedImageUrls(imageUrls || [previewUrl]) // 设置多张图片数组
-      setStylizationStatus("success")
-      toast({ 
-        title: "生成成功！", 
-        description: `图片已成功应用${styleNameForDisplay}风格。${imageUrls && imageUrls.length > 1 ? `生成了 ${imageUrls.length} 张图片。` : ''}` 
-      })
+      // 2. 开始轮询结果
+      console.log("🔄 开始轮询任务结果...");
+      pollForResult(taskId);
+
     } catch (error: any) {
-      console.error("图片生成错误:", error)
-      setStylizationErrorMessage(error.message || "图片生成过程中发生错误")
-      setStylizationStatus("error")
+      console.error("❌ 图片生成任务创建错误:", error);
+      console.error("错误详情:", error.message);
+      console.error("错误堆栈:", error.stack);
+      setStylizationErrorMessage(error.message || "图片生成任务创建时发生错误");
+      setStylizationStatus("error");
       toast({ 
-        title: "生成失败", 
-        description: error.message || "图片生成失败，请重试。", 
+        title: "任务创建失败", 
+        description: error.message || "无法创建生成任务，请重试。", 
         variant: "destructive" 
-      })
+      });
     }
   }
+
+  // 新增：轮询函数
+  const pollForResult = (taskId: string) => {
+    const startTime = Date.now();
+    const maxPollTime = 5 * 60 * 1000; // 5分钟超时
+
+    const poll = async () => {
+      // 检查是否超时
+      if (Date.now() - startTime > maxPollTime) {
+        setStylizationErrorMessage("任务处理超时，请稍后重试。");
+        setStylizationStatus("error");
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+        }
+        toast({ title: "任务超时", description: "等待图片生成结果超时（5分钟）。", variant: "destructive" });
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/stylize-image-status?taskId=${taskId}`);
+        const data = await response.json();
+
+        if (data.status === 'completed') {
+          const { previewUrl, imageUrls, styleNameForDisplay } = data.result;
+          setStylizedImageUrl(previewUrl);
+          setStylizedImageUrls(imageUrls || [previewUrl]);
+          setStylizationStatus("success");
+          toast({ 
+            title: "生成成功！", 
+            description: `图片已成功应用${styleNameForDisplay}风格。`
+          });
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+          }
+        } else if (data.status === 'failed') {
+          setStylizationErrorMessage(data.error || "任务处理失败，未知错误。");
+          setStylizationStatus("error");
+          toast({ title: "生成失败", description: data.error || "后台任务处理失败。", variant: "destructive" });
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+          }
+        }
+        // 如果是 'pending' 或其他状态，则不执行任何操作，等待下一次轮询
+      } catch (error: any) {
+        console.error(`轮询任务 ${taskId} 时出错:`, error);
+        // 如果轮询本身失败，可以决定是否停止
+        // 这里我们选择继续轮询，除非达到超时
+      }
+    };
+
+    // 立即执行一次，然后设置定时器
+    poll();
+    pollIntervalRef.current = setInterval(poll, 3000); // 每3秒轮询一次
+  };
 
   const handleImageModify = async () => {
     if (!apiKey) {
@@ -302,6 +401,7 @@ export default function PicMagicPage() {
                 onClick={handleGenerate}
                 disabled={
                   stylizationStatus === "loading" ||
+                  stylizationStatus === "polling" ||
                   isUploading ||
                   !uploadedImageFile ||
                   !selectedStyle
@@ -310,10 +410,10 @@ export default function PicMagicPage() {
                 size="lg"
               >
                 {isUploading ? <Upload className="mr-2 h-5 w-5 animate-pulse" /> : <Wand2 className="mr-2 h-5 w-5" />}
-                {isUploading ? "上传中..." : stylizationStatus === "loading" ? "生成中..." : "生成预览"}
+                {isUploading ? "上传中..." : stylizationStatus === "loading" ? "创建任务中..." : stylizationStatus === "polling" ? "处理中，请稍候..." : "生成图片"}
               </Button>
               <p className="text-xs text-center text-muted-foreground">
-                输入秘钥选择想要的风格后点击生成预览
+                图片生成可能需要1-3分钟，请耐心等待
               </p>
             </div>
 
