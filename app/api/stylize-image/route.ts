@@ -44,17 +44,17 @@ export async function POST(req: Request) {
     console.log(`[TASK ${taskId}] ✅ Task record created in database.`);
 
     // 3. Asynchronously invoke the Edge Function to process the task
-    // We explicitly set the Authorization header using the anon key, as recommended for server-to-server calls.
+    console.log(`[TASK ${taskId}] 🚀 准备调用 Edge Function stylize-image-worker...`);
     const { error: invokeError } = await supabaseAdminClient.functions.invoke('stylize-image-worker', {
-      body: { record: { id: taskId } }, // Pass the task ID to the worker
+      body: { record: { id: taskId } },
       headers: {
         Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
       }
     });
+    console.log(`[TASK ${taskId}] 🚀 Edge Function invoke 返回结果:`, invokeError);
 
     if (invokeError) {
       console.error(`[TASK ${taskId}] ❌ Supabase function invoke error:`, invokeError.message);
-      // Optional: You could try to mark the task as failed here, but for now, we'll log and throw.
       throw new Error(`Failed to invoke stylization worker: ${invokeError.message}`);
     }
     
@@ -65,10 +65,14 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('❌ Error in /api/stylize-image:', error);
+    if (error && error.stack) {
+      console.error('❌ Error stack:', error.stack);
+    }
     return NextResponse.json(
       {
-        error: 'Failed to initiate stylization task.',
-        details: error.message,
+        errorType: error?.name || 'Error',
+        errorMessage: error?.message || 'An unknown error has occurred',
+        errorStack: error?.stack || null,
       },
       { status: 500 }
     );
