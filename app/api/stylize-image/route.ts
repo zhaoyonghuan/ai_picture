@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { randomUUID } from 'crypto';
 import { supabaseAdminClient } from "@/lib/supabase-client";
 
+// 全局日志：import后立即打印环境变量，便于定位初始化阶段错误
+console.log('🌐 stylize-image route loaded, env:', {
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? '已设置' : '未设置',
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '已设置' : '未设置',
+});
+
 // 这个接口现在是同步的，它会触发一个后台函数
 export async function POST(req: Request) {
   try {
