@@ -69,6 +69,8 @@ export async function POST(req: Request) {
     if (error && error.stack) {
       console.error('❌ Error stack:', error.stack);
     }
+    // 新增：打印完整错误对象
+    console.error('❌ 捕获到的完整错误对象:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
     // 打印所有环境变量和上下文
     console.error('环境变量:', {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
