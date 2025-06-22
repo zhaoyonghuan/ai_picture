@@ -3,93 +3,65 @@ import { getImageStylizationService } from '@/services/image-stylization/image-s
 import { TaskStorageFactory } from '@/lib/task-storage';
 
 export async function POST(req: Request) {
-  console.log("🚀🚀🚀 [BACKGROUND TASK START] /api/stylize-image-background called! 🚀🚀🚀");
+  let taskId: string | null = null;
   try {
-    const { taskId, imageUrl, style, apiKey } = await req.json();
+    console.log("🚀🚀🚀 [BACKGROUND TASK START] /api/stylize-image-background received a request! 🚀🚀🚀");
+    
+    const body = await req.json();
+    taskId = body.taskId;
+    console.log(`[TASK ${taskId}] 1. Received payload:`, { taskId: body.taskId, style: body.style, imageUrl: body.imageUrl ? 'present' : 'missing', apiKey: body.apiKey ? 'present' : 'missing' });
 
-    // 详细日志：检查接收到的参数
-    console.log("=== /api/stylize-image-background 接收到的参数 ===");
-    console.log("taskId:", taskId);
-    console.log("imageUrl:", imageUrl ? `${imageUrl.substring(0, 50)}...` : "undefined");
-    console.log("style:", style);
-    console.log("apiKey:", apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : "undefined");
-    console.log("apiKey 长度:", apiKey ? apiKey.length : 0);
-    console.log("apiKey 类型:", typeof apiKey);
-
+    const { imageUrl, style, apiKey } = body;
     if (!taskId || !imageUrl || !style || !apiKey) {
-      console.error("❌ 后台参数验证失败:");
-      console.error("- taskId:", !taskId ? "缺失" : "✓");
-      console.error("- imageUrl:", !imageUrl ? "缺失" : "✓");
-      console.error("- style:", !style ? "缺失" : "✓");
-      console.error("- apiKey:", !apiKey ? "缺失" : "✓");
+      console.error(`[TASK ${taskId}] ❌ Missing parameters. Aborting.`);
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
+    console.log(`[TASK ${taskId}] 2. Parameters validated.`);
     const taskStorage = TaskStorageFactory.getStorage();
-    console.log("✅ 获取任务存储:", process.env.NODE_ENV === 'development' ? "内存存储" : "Netlify Blobs");
+    console.log(`[TASK ${taskId}] 3. Task storage obtained. Type: ${process.env.NODE_ENV === 'development' ? 'Memory' : 'Netlify Blobs'}`);
 
-    // 立即更新状态为处理中
-    console.log("📝 更新任务状态为 processing");
     await taskStorage.setJSON(taskId, { status: 'processing' });
+    console.log(`[TASK ${taskId}] 4. Status set to 'processing' in storage.`);
 
-    try {
-      // 创建图像风格化服务
-      console.log("🔧 创建图像风格化服务，传入apiKey:", apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : "undefined");
-      const stylizationService = getImageStylizationService(apiKey);
-      console.log("✅ 图像风格化服务创建成功");
-      
-      // 处理图像
-      console.log("🎨 开始处理图像风格化...");
-      console.log("- 图像URL:", imageUrl ? `${imageUrl.substring(0, 50)}...` : "undefined");
-      console.log("- 风格:", style);
-      console.log("- API密钥:", apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : "undefined");
-      
-      const result = await stylizationService.stylizeImage(imageUrl, style);
-      console.log("✅ 图像风格化处理成功");
-      console.log("📊 处理结果:", {
-        previewUrl: result.previewUrl ? `${result.previewUrl.substring(0, 50)}...` : "undefined",
-        imageUrlsCount: result.imageUrls ? result.imageUrls.length : 0,
-        styleNameForDisplay: result.styleNameForDisplay
-      });
-      
-      // 保存成功结果
-      console.log("💾 保存成功结果到存储");
-      await taskStorage.setJSON(taskId, {
-        status: 'completed',
-        result: result
-      });
-      console.log("✅ 任务完成，结果已保存");
-      console.log("🎉🎉🎉 [BACKGROUND TASK SUCCESS] Task completed successfully. 🎉🎉🎉");
+    console.log(`[TASK ${taskId}] 5. Creating stylization service...`);
+    const stylizationService = getImageStylizationService(apiKey);
+    console.log(`[TASK ${taskId}] 6. Service created successfully.`);
 
-    } catch (error: any) {
-      console.error(`❌❌❌ [BACKGROUND TASK ERROR] Stylization failed for task ${taskId}. ❌❌❌`);
-      console.error(`❌ Stylization failed for task ${taskId}:`, error);
-      console.error("错误详情:", error.message);
-      console.error("错误堆栈:", error.stack);
-      
-      // 保存错误结果
-      console.log("💾 保存错误结果到存储");
-      await taskStorage.setJSON(taskId, {
-        status: 'failed',
-        error: error.message || 'Stylization failed'
-      });
-      console.log("✅ 错误结果已保存");
-      console.log("🔥🔥🔥 [BACKGROUND TASK FAILED] Error result saved. 🔥🔥🔥");
-    }
+    console.log(`[TASK ${taskId}] 7. Calling stylizeImage method...`);
+    const result = await stylizationService.stylizeImage(imageUrl, style);
+    console.log(`[TASK ${taskId}] 8. stylizeImage method completed.`);
 
-    console.log("✅ 后台任务处理完成");
+    console.log(`[TASK ${taskId}] 9. Saving 'completed' status to storage.`);
+    await taskStorage.setJSON(taskId, {
+      status: 'completed',
+      result: result
+    });
+    console.log(`[TASK ${taskId}] 10. 🎉🎉🎉 [BACKGROUND TASK SUCCESS] Task completed and result saved. 🎉🎉🎉`);
     return NextResponse.json({ success: true });
 
   } catch (error: any) {
-    console.error('❌❌❌ [BACKGROUND TASK FATAL] Unhandled error in background API. ❌❌❌');
-    console.error('❌ Error in background stylization API:', error);
-    console.error("错误详情:", error.message);
-    console.error("错误堆栈:", error.stack);
+    const errorMsg = error.message || 'An unknown error occurred';
+    console.error(`🔥🔥🔥 [TASK ${taskId || 'UNKNOWN'}] ❌❌❌ [BACKGROUND TASK FAILED] An error occurred. 🔥🔥🔥`);
+    console.error(`[TASK ${taskId || 'UNKNOWN'}] Error details:`, errorMsg);
+    console.error(`[TASK ${taskId || 'UNKNOWN'}] Error stack:`, error.stack);
+    
+    if (taskId) {
+      try {
+        const taskStorage = TaskStorageFactory.getStorage();
+        console.log(`[TASK ${taskId}] Saving 'failed' status to storage due to error.`);
+        await taskStorage.setJSON(taskId, {
+          status: 'failed',
+          error: errorMsg
+        });
+        console.log(`[TASK ${taskId}] 'failed' status saved successfully.`);
+      } catch (storageError: any) {
+        console.error(`[TASK ${taskId}] ❌ CRITICAL: Failed to save error status to storage.`, storageError);
+      }
+    }
+    
     return NextResponse.json(
-      {
-        error: 'Failed to process stylization task.',
-        details: error.message,
-      },
+      { error: 'Failed to process stylization task.', details: errorMsg },
       { status: 500 }
     );
   }
