@@ -7,19 +7,15 @@ export async function POST(req: Request) {
   try {
     const { imageUrl, style, apiKey } = await req.json();
 
-    // 详细日志：检查接收到的参数
-    console.log("=== /api/stylize-image 接收到的参数 ===");
-    console.log("imageUrl:", imageUrl ? `${imageUrl.substring(0, 50)}...` : "undefined");
-    console.log("style:", style);
-    console.log("apiKey:", apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : "undefined");
-    console.log("apiKey 长度:", apiKey ? apiKey.length : 0);
-    console.log("apiKey 类型:", typeof apiKey);
+    console.log('--- Netlify API /api/stylize-image 启动 ---');
+    console.log('环境变量:');
+    console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? '已设置' : '未设置');
+    console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '已设置' : '未设置');
+    console.log('收到参数:', { imageUrl, style, apiKey: apiKey ? `已设置 (${apiKey.slice(0, 8)}...${apiKey.slice(-4)})` : '未设置' });
 
     if (!imageUrl || !style || !apiKey) {
-      console.error("❌ 参数验证失败:");
-      console.error("- imageUrl:", !imageUrl ? "缺失" : "✓");
-      console.error("- style:", !style ? "缺失" : "✓");
-      console.error("- apiKey:", !apiKey ? "缺失" : "✓");
+      console.error('❌ 缺少参数:', { imageUrl, style, apiKey });
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
@@ -28,33 +24,37 @@ export async function POST(req: Request) {
     console.log(`[TASK ${taskId}] ✅ New task received. Creating record in Supabase.`);
 
     // 2. Insert the new task into the Supabase 'tasks' table
-    const { error: insertError } = await supabaseAdminClient
+    const insertPayload = {
+      id: taskId,
+      status: 'pending',
+      payload: { imageUrl, style, apiKey },
+    };
+    console.log(`[TASK ${taskId}] 🚀 准备写入 Supabase，参数:`, insertPayload);
+    const { error: insertError, data: insertData } = await supabaseAdminClient
       .from('tasks')
-      .insert({
-        id: taskId,
-        status: 'pending',
-        payload: { imageUrl, style, apiKey }, // Store all necessary info for the worker
-      });
+      .insert(insertPayload);
+    console.log(`[TASK ${taskId}] 📝 Supabase insert 返回:`, { insertError, insertData });
 
     if (insertError) {
-      console.error(`[TASK ${taskId}] ❌ Supabase insert error:`, insertError.message);
+      console.error(`[TASK ${taskId}] ❌ Supabase insert error:`, insertError.message, insertError);
       throw new Error(`Failed to create task in database: ${insertError.message}`);
     }
 
     console.log(`[TASK ${taskId}] ✅ Task record created in database.`);
 
     // 3. Asynchronously invoke the Edge Function to process the task
-    console.log(`[TASK ${taskId}] 🚀 准备调用 Edge Function stylize-image-worker...`);
-    const { error: invokeError } = await supabaseAdminClient.functions.invoke('stylize-image-worker', {
+    const invokeParams = {
       body: { record: { id: taskId } },
       headers: {
         Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
       }
-    });
-    console.log(`[TASK ${taskId}] 🚀 Edge Function invoke 返回结果:`, invokeError);
+    };
+    console.log(`[TASK ${taskId}] 🚀 准备调用 Edge Function stylize-image-worker，参数:`, invokeParams);
+    const { error: invokeError, data: invokeData } = await supabaseAdminClient.functions.invoke('stylize-image-worker', invokeParams);
+    console.log(`[TASK ${taskId}] 🚀 Edge Function invoke 返回:`, { invokeError, invokeData });
 
     if (invokeError) {
-      console.error(`[TASK ${taskId}] ❌ Supabase function invoke error:`, invokeError.message);
+      console.error(`[TASK ${taskId}] ❌ Supabase function invoke error:`, invokeError.message, invokeError);
       throw new Error(`Failed to invoke stylization worker: ${invokeError.message}`);
     }
     
@@ -68,6 +68,12 @@ export async function POST(req: Request) {
     if (error && error.stack) {
       console.error('❌ Error stack:', error.stack);
     }
+    // 打印所有环境变量和上下文
+    console.error('环境变量:', {
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? '已设置' : '未设置',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '已设置' : '未设置',
+    });
     return NextResponse.json(
       {
         errorType: error?.name || 'Error',
