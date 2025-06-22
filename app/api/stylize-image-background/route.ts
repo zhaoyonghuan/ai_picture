@@ -3,6 +3,7 @@ import { getImageStylizationService } from '@/services/image-stylization/image-s
 import { TaskStorageFactory } from '@/lib/task-storage';
 
 export async function POST(req: Request) {
+  console.log("🚀🚀🚀 [BACKGROUND TASK START] /api/stylize-image-background called! 🚀🚀🚀");
   try {
     const { taskId, imageUrl, style, apiKey } = await req.json();
 
@@ -58,8 +59,10 @@ export async function POST(req: Request) {
         result: result
       });
       console.log("✅ 任务完成，结果已保存");
+      console.log("🎉🎉🎉 [BACKGROUND TASK SUCCESS] Task completed successfully. 🎉🎉🎉");
 
     } catch (error: any) {
+      console.error(`❌❌❌ [BACKGROUND TASK ERROR] Stylization failed for task ${taskId}. ❌❌❌`);
       console.error(`❌ Stylization failed for task ${taskId}:`, error);
       console.error("错误详情:", error.message);
       console.error("错误堆栈:", error.stack);
@@ -71,12 +74,14 @@ export async function POST(req: Request) {
         error: error.message || 'Stylization failed'
       });
       console.log("✅ 错误结果已保存");
+      console.log("🔥🔥🔥 [BACKGROUND TASK FAILED] Error result saved. 🔥🔥🔥");
     }
 
     console.log("✅ 后台任务处理完成");
     return NextResponse.json({ success: true });
 
   } catch (error: any) {
+    console.error('❌❌❌ [BACKGROUND TASK FATAL] Unhandled error in background API. ❌❌❌');
     console.error('❌ Error in background stylization API:', error);
     console.error("错误详情:", error.message);
     console.error("错误堆栈:", error.stack);
