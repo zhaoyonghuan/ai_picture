@@ -15,10 +15,10 @@ export function KeyValidator({ apiKey, setApiKey, onOpenSupportModal }: KeyValid
   return (
     <div className="flex items-center gap-2">
       <div className="relative flex-grow">
-        <Input
-          type="text"
-          placeholder="在此粘贴您的秘钥"
-          value={apiKey}
+      <Input
+        type="text"
+        placeholder="在此粘贴您的秘钥"
+        value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           className="min-w-[600px] pr-10 text-sm"
         />
@@ -31,7 +31,7 @@ export function KeyValidator({ apiKey, setApiKey, onOpenSupportModal }: KeyValid
             aria-label="清空秘钥"
           >
             <X className="h-4 w-4" />
-          </Button>
+      </Button>
         )}
       </div>
       <Button 

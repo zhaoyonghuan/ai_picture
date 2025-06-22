@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "app/api/stylize-image-background/route.ts": {
+      "maxDuration": 300
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
+  ]
+} 

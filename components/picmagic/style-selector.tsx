@@ -80,8 +80,8 @@ export function StyleSelector({ selectedStyle, onStyleSelect, customStyleValue, 
       
       <TooltipProvider delayDuration={200}>
         <ScrollArea className="h-72 rounded-md border">
-          <RadioGroup
-            value={selectedStyle || undefined}
+        <RadioGroup
+          value={selectedStyle || undefined}
             onValueChange={val => {
               onStyleSelect(val)
               if (val !== "custom") {
@@ -89,23 +89,23 @@ export function StyleSelector({ selectedStyle, onStyleSelect, customStyleValue, 
               }
             }}
             className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4"
-          >
-            {availableStyles.map((style: StyleOption) => (
-              <Tooltip key={style.id}>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center space-x-2 p-3 border rounded-md hover:border-primary transition-colors data-[state=checked]:border-primary data-[state=checked]:ring-2 data-[state=checked]:ring-primary">
-                    <RadioGroupItem value={style.id} id={style.id} />
-                    <Label htmlFor={style.id} className="cursor-pointer flex-1 text-sm">
-                      {style.name}
-                    </Label>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="center">
-                  <p className="text-xs max-w-xs">{style.description}</p>
-                </TooltipContent>
-              </Tooltip>
-            ))}
-          </RadioGroup>
+        >
+          {availableStyles.map((style: StyleOption) => (
+            <Tooltip key={style.id}>
+              <TooltipTrigger asChild>
+                <div className="flex items-center space-x-2 p-3 border rounded-md hover:border-primary transition-colors data-[state=checked]:border-primary data-[state=checked]:ring-2 data-[state=checked]:ring-primary">
+                  <RadioGroupItem value={style.id} id={style.id} />
+                  <Label htmlFor={style.id} className="cursor-pointer flex-1 text-sm">
+                    {style.name}
+                  </Label>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" align="center">
+                <p className="text-xs max-w-xs">{style.description}</p>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </RadioGroup>
         </ScrollArea>
       </TooltipProvider>
       
