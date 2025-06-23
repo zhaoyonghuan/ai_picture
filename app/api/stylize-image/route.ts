@@ -51,24 +51,12 @@ export async function POST(req: Request) {
     console.log(`[TASK ${taskId}] ✅ Task record created in database.`);
 
     // 3. Asynchronously invoke the Edge Function to process the task
-    const invokeParams = {
-      body: { record: { id: taskId } },
-      headers: {
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-      }
-    };
-    console.log(`[TASK ${taskId}] 🚀 准备调用 Edge Function stylize-image-worker，参数:`, invokeParams);
-    const { error: invokeError, data: invokeData } = await supabaseAdminClient.functions.invoke('stylize-image-worker', invokeParams);
-    console.log(`[TASK ${taskId}] 🚀 Edge Function invoke 返回:`, { invokeError, invokeData });
-
-    if (invokeError) {
-      console.error(`[TASK ${taskId}] ❌ Supabase function invoke error:`, invokeError.message, invokeError);
-      throw new Error(`Failed to invoke stylization worker: ${invokeError.message}`);
-    }
-    
-    console.log(`[TASK ${taskId}] ✅ Edge Function 'stylize-image-worker' invoked.`);
+    // The invocation is now handled by a Supabase Database Webhook on the 'tasks' table.
+    // The `supabaseAdminClient.functions.invoke` call has been removed from here
+    // to prevent the Netlify function from timing out.
 
     // 4. Immediately return the task ID to the client
+    console.log(`[TASK ${taskId}] ✅ Returning task ID to client. Worker will be triggered by Supabase webhook.`);
     return NextResponse.json({ taskId });
 
   } catch (error: any) {

@@ -48,6 +48,15 @@ export default function PicMagicPage() {
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
 
+  // 当组件卸载时，清除任何正在进行的轮询
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
+
   // 处理图片文件上传到 Cloudinary
   const uploadFileToCloudinary = useCallback(async (file: File) => {
     setIsUploading(true)
@@ -125,9 +134,7 @@ export default function PicMagicPage() {
     setStylizedImageUrl(null)
     setStylizedImageUrls([])
     setStylizationErrorMessage(null)
-    setCurrentTaskId(null); // 清空旧任务ID
-    
-    // 停止任何可能正在进行的旧轮询
+    setCurrentTaskId(null);
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
     }
@@ -209,57 +216,62 @@ export default function PicMagicPage() {
 
   // 新增：轮询函数
   const pollForResult = (taskId: string) => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+    
     const startTime = Date.now();
     const maxPollTime = 5 * 60 * 1000; // 5分钟超时
 
-    const poll = async () => {
-      // 检查是否超时
+    pollIntervalRef.current = setInterval(async () => {
       if (Date.now() - startTime > maxPollTime) {
         setStylizationErrorMessage("任务处理超时，请稍后重试。");
         setStylizationStatus("error");
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-        }
         toast({ title: "任务超时", description: "等待图片生成结果超时（5分钟）。", variant: "destructive" });
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
         return;
       }
 
       try {
         const response = await fetch(`/api/stylize-image-status?taskId=${taskId}`);
+        if (!response.ok) {
+          // 如果API本身返回错误（比如500），则停止轮询
+          throw new Error(`状态查询失败: ${response.statusText}`);
+        }
+        
         const data = await response.json();
 
-        if (data.status === 'completed') {
-          const { previewUrl, imageUrls, styleNameForDisplay } = data.result;
-          setStylizedImageUrl(previewUrl);
-          setStylizedImageUrls(imageUrls || [previewUrl]);
+        if (data.status === 'completed' || data.status === 'succeeded') { // 兼容 succeeded
+          const resultUrl = data.result?.stylizedImageUrl || data.result?.resultUrl;
+          if (!resultUrl) throw new Error('任务完成，但未返回图片地址');
+
+          setStylizedImageUrl(resultUrl);
+          setStylizedImageUrls([resultUrl]); // 假设只返回一张图片
           setStylizationStatus("success");
           toast({ 
             title: "生成成功！", 
-            description: `图片已成功应用${styleNameForDisplay}风格。`
+            description: `图片已成功生成。`
           });
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-          }
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+
         } else if (data.status === 'failed') {
           setStylizationErrorMessage(data.error || "任务处理失败，未知错误。");
           setStylizationStatus("error");
           toast({ title: "生成失败", description: data.error || "后台任务处理失败。", variant: "destructive" });
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-          }
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        
+        } else {
+          // 状态为 pending, processing, 或其他中间状态，继续轮询
+          console.log(`任务 ${taskId} 状态: ${data.status}, 继续轮询...`);
         }
-        // 如果是 'pending' 或其他状态，则不执行任何操作，等待下一次轮询
       } catch (error: any) {
-        console.error(`轮询任务 ${taskId} 时出错:`, error);
-        // 如果轮询本身失败，可以决定是否停止
-        // 这里我们选择继续轮询，除非达到超时
+        setStylizationErrorMessage(error.message);
+        setStylizationStatus("error");
+        toast({ title: "轮询错误", description: error.message, variant: "destructive" });
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       }
-    };
-
-    // 立即执行一次，然后设置定时器
-    poll();
-    pollIntervalRef.current = setInterval(poll, 3000); // 每3秒轮询一次
-  };
+    }, 3000); // 每3秒查询一次
+  }
 
   const handleImageModify = async () => {
     if (!apiKey) {
