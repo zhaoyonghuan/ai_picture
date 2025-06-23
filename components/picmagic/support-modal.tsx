@@ -62,7 +62,7 @@ export function SupportModal({ isOpen, onOpenChange }: SupportModalProps) {
             <h4 className="font-semibold text-md">联系客服</h4>
             <p className="text-sm text-muted-foreground">工作时间：9:00 - 22:00</p>
             <div className="flex flex-col items-center sm:flex-row sm:items-start gap-4">
-              <Image
+              <img
                 src="/wechat-kefu.jpg"
                 alt="微信客服二维码"
                 width={160}
