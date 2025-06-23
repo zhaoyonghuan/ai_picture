@@ -65,11 +65,18 @@ serve(async (req: Request) => {
     console.log(`[TASK ${taskId}] ✅ Stylization completed.`);
 
     // 4. Save the result to the database
+    // Construct a result object that matches the frontend's expectations.
+    const resultToStore = {
+      stylizedImageUrl: result.previewUrl,
+      allImageUrls: result.imageUrls,
+      styleName: result.styleNameForDisplay,
+    };
+    
     await supabaseAdmin
       .from('tasks')
       .update({ 
         status: 'completed', 
-        result: result as any, // Cast to 'any' for Supabase client
+        result: resultToStore as any, // Save the structured result
         updated_at: new Date().toISOString()
       })
       .eq('id', taskId);

@@ -63,21 +63,14 @@ export function SupportModal({ isOpen, onOpenChange }: SupportModalProps) {
             <p className="text-sm text-muted-foreground">工作时间：9:00 - 22:00</p>
             <div className="flex flex-col items-center sm:flex-row sm:items-start gap-4">
               <Image
-                src="/placeholder.svg?width=128&height=128&text=微信客服QR"
+                src="/wechat-kefu.jpg"
                 alt="微信客服二维码"
-                width={100}
-                height={100}
+                width={160}
+                height={160}
                 className="rounded-md border"
               />
               <div className="space-y-2 text-center sm:text-left">
-                <p className="text-sm">请扫描二维码添加客服微信，或复制下方微信号添加。</p>
-                <div className="flex items-center justify-center sm:justify-start gap-2 p-2 bg-muted rounded-md">
-                  <span className="font-mono text-sm">微信号: {wechatId}</span>
-                  <Button variant="ghost" size="sm" onClick={copyToClipboard}>
-                    <Copy className="mr-1 h-3 w-3" />
-                    复制
-                  </Button>
-                </div>
+                <p className="text-sm">请扫描二维码添加客服微信。</p>
               </div>
             </div>
           </div>
