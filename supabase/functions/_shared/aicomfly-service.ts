@@ -12,6 +12,26 @@ export interface ImageStylizationResult {
   styleNameForDisplay: string;
 }
 
+// 带超时的 fetch 工具函数
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number = 300000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
+}
+
 export class AicomflyService {
   private baseUrl: string;
 
@@ -53,11 +73,16 @@ export class AicomflyService {
         'Authorization': `Bearer ${apiKey}`,
       };
 
-      const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(requestBody),
-      });
+      // 使用带超时的 fetch，设置 5 分钟超时
+      const response = await fetchWithTimeout(
+        `${this.baseUrl}/v1/chat/completions`,
+        {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(requestBody),
+        },
+        300000 // 5 分钟超时
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: "Failed to parse error response" }));
